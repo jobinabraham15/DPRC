@@ -14,6 +14,7 @@ module.exports = (function() {
     let thisDomain = domain.create(); // Create a new domain
 
     thisDomain.on("error", function(error) {
+      console.log("Caught error in domain", error);
       self.emit("error", error);
     });
 
@@ -79,14 +80,35 @@ module.exports = (function() {
         staleKeyExists
       ) {
         if (originalKeyExists && !staleKeyExists) {
-          self.client.rename(redisKey, redisKey + "_stale", function(err) {
-            if (err) {
-              cacheRoute(routeOptions)(req, res, next);
-            }
-            self.client.expire(redisKey + "_stale", refreshBefore);
-            res.express_redis_cache_name = redisKey + "_stale";
-            cacheRoute(routeOptions)(req, res, next);
-          }); // TODO: Take the stale marker prefix from options
+          self.client.watch(redisKey, function() {
+            self.client
+              .multi()
+              .rename(redisKey, redisKey + "_stale")
+              .expire(redisKey + "_stale", refreshBefore, function() {
+                console.log("After Expire called");
+                res.express_redis_cache_name = redisKey + "_stale";
+                cacheRoute(routeOptions)(req, res, next);
+              })
+              .exec(function(err, responses) {
+                if (err) {
+                  console.log("Error in exec", err);
+                }
+                if (responses === null) {
+                  console.log("Some Change occured on the watched key");
+                  next();
+                }
+                console.log("responses", responses);
+              });
+          });
+
+          //   self.client.rename(redisKey, redisKey + "_stale", function(err) {
+          //     if (err) {
+          //       cacheRoute(routeOptions)(req, res, next);
+          //     }
+          //     self.client.expire(redisKey + "_stale", refreshBefore);
+          //     res.express_redis_cache_name = redisKey + "_stale";
+          //     cacheRoute(routeOptions)(req, res, next);
+          //   }); // TODO: Take the stale marker prefix from options
         } else if (!originalKeyExists && staleKeyExists) {
           res.express_redis_cache_name = redisKey + "_stale";
           cacheRoute(routeOptions)(req, res, next); // TODO: Build Expiry for stale cache

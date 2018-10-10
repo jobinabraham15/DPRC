@@ -61,7 +61,7 @@ redisClient.on('connect', () => {
 });
 
 redisClient.on('error', (err) => {
-  console.log("error", err);
+  console.log("error in redis client", err);
 });
 
 redisClient.set('my test key', 'my test value', redis.print);
