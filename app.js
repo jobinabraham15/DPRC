@@ -10,7 +10,7 @@ var usersRouter = require('./routes/users');
 var redis = require('redis');
 var redisClient = redis.createClient();
 
-var cache = require('./middlewares/ExpressRedisCache')()
+var cache = require('./middlewares/Dprc')()
 // console.log("cache =====>", cache.route);
 var app = express();
 
